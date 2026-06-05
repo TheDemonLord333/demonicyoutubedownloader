@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Demonic YouTube Downloader</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Background particles -->
+  <div class="bg-overlay"></div>
+  <div id="particles"></div>
+
+  <!-- Idle runes -->
+  <div class="rune rune-1">⛧</div>
+  <div class="rune rune-2">⸸</div>
+  <div class="rune rune-3">☽</div>
+  <div class="rune rune-4">⛧</div>
+  <div class="rune rune-5">✦</div>
+  <div class="rune rune-6">⸸</div>
+
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="sigil-ring">
+        <svg viewBox="0 0 120 120" class="sigil-svg" aria-hidden="true">
+          <circle cx="60" cy="60" r="54" fill="none" stroke="url(#ring-grad)" stroke-width="1.5" stroke-dasharray="4 3"/>
+          <circle cx="60" cy="60" r="42" fill="none" stroke="url(#ring-grad)" stroke-width="0.8" opacity="0.6"/>
+          <polygon points="60,12 107,84 13,84" fill="none" stroke="url(#ring-grad)" stroke-width="1.5"/>
+          <polygon points="60,108 13,36 107,36" fill="none" stroke="url(#ring-grad)" stroke-width="1"/>
+          <circle cx="60" cy="60" r="5" fill="url(#ring-grad)" opacity="0.9"/>
+          <defs>
+            <linearGradient id="ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#5865F2"/>
+              <stop offset="50%" stop-color="#8B1FE0"/>
+              <stop offset="100%" stop-color="#1DB954"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <h1 class="title">
+        <span class="title-demonic">Demonic</span>
+        <span class="title-yt">YouTube</span>
+        <span class="title-dl">Downloader</span>
+      </h1>
+      <p class="subtitle">Seize the content. Bend it to your will.</p>
+    </header>
+
+    <!-- Main card -->
+    <main class="card">
+      <!-- URL input section -->
+      <section class="section" id="url-section">
+        <label class="label" for="url-input">
+          <span class="label-icon">⛧</span> YouTube URL
+        </label>
+        <div class="input-row">
+          <input
+            type="url"
+            id="url-input"
+            class="input"
+            placeholder="https://www.youtube.com/watch?v=..."
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button class="btn btn-secondary" id="fetch-btn" title="Fetch video info">
+            <span class="btn-icon">☽</span>
+            <span>Summon</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Video info panel -->
+      <section class="video-info hidden" id="video-info">
+        <div class="info-thumb-wrap">
+          <img id="info-thumb" src="" alt="thumbnail" class="info-thumb" />
+          <div class="info-thumb-overlay"></div>
+        </div>
+        <div class="info-meta">
+          <div class="info-title" id="info-title">—</div>
+          <div class="info-uploader" id="info-uploader">—</div>
+          <div class="info-duration" id="info-duration">—</div>
+        </div>
+      </section>
+
+      <!-- Divider -->
+      <div class="divider">
+        <span class="divider-glyph">✦ ✦ ✦</span>
+      </div>
+
+      <!-- Trim section -->
+      <section class="section" id="trim-section">
+        <div class="section-header">
+          <span class="label-icon">⸸</span>
+          <span class="label">Custom Clip (optional)</span>
+          <label class="toggle-wrap">
+            <input type="checkbox" id="trim-toggle" />
+            <span class="toggle-track">
+              <span class="toggle-thumb"></span>
+            </span>
+          </label>
+        </div>
+        <div class="trim-controls hidden" id="trim-controls">
+          <div class="time-row">
+            <div class="time-field">
+              <label class="time-label" for="start-time">Start</label>
+              <input type="text" id="start-time" class="input input-time" placeholder="00:00:00" maxlength="8" />
+            </div>
+            <div class="time-separator">→</div>
+            <div class="time-field">
+              <label class="time-label" for="end-time">End</label>
+              <input type="text" id="end-time" class="input input-time" placeholder="00:00:00" maxlength="8" />
+            </div>
+          </div>
+          <p class="trim-hint">Format: HH:MM:SS &nbsp;·&nbsp; Leave blank to use video start/end</p>
+        </div>
+      </section>
+
+      <!-- Download buttons -->
+      <section class="section action-section">
+        <button class="btn btn-primary btn-full" id="dl-full-btn" disabled>
+          <span class="btn-flame">🔥</span>
+          Download Full Video
+        </button>
+        <button class="btn btn-accent btn-full hidden" id="dl-trim-btn" disabled>
+          <span class="btn-flame">⚡</span>
+          Download Clipped Video
+        </button>
+      </section>
+
+      <!-- Progress section -->
+      <section class="progress-section hidden" id="progress-section">
+        <div class="progress-header">
+          <span class="progress-label" id="progress-label">Preparing...</span>
+          <span class="progress-pct" id="progress-pct">0%</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-bar" id="progress-bar"></div>
+          <div class="progress-glow" id="progress-glow"></div>
+        </div>
+        <div class="progress-status" id="progress-status">Initializing...</div>
+      </section>
+
+      <!-- Download ready -->
+      <section class="ready-section hidden" id="ready-section">
+        <div class="ready-icon">⛧</div>
+        <div class="ready-text">Your video has been claimed.</div>
+        <a class="btn btn-success btn-full" id="ready-link" href="#" download>
+          <span>⬇</span> Save to Device
+        </a>
+        <button class="btn btn-ghost btn-full" id="reset-btn">Download Another</button>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <span class="footer-sigil">⛧</span>
+      Demonic YouTube Downloader &nbsp;·&nbsp; Made with darkness
+      <span class="footer-sigil">⛧</span>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
