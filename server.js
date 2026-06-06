@@ -52,12 +52,20 @@ async function ensureYtDlp() {
 
 // ─── Format helpers ───────────────────────────────────────────
 function buildVideoFormat(resolution) {
+  // Use ONLY combined single-file formats (video+audio already merged).
+  // "best[vcodec!=none][acodec!=none]" = formats that have BOTH streams in one file.
+  // This avoids any ffmpeg merge step entirely.
   const h = { '360': 360, '480': 480, '720': 720, '1080': 1080 }[resolution];
   if (!h) {
-    // best quality
-    return 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best[ext=mp4]/best';
+    return 'best[vcodec!=none][acodec!=none][ext=mp4]/best[vcodec!=none][acodec!=none]/best[ext=mp4]/best';
   }
-  return `bestvideo[height<=${h}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=${h}]+bestaudio/best[height<=${h}][ext=mp4]/best[height<=${h}]`;
+  return (
+    `best[vcodec!=none][acodec!=none][height<=${h}][ext=mp4]` +
+    `/best[vcodec!=none][acodec!=none][height<=${h}]` +
+    `/best[height<=${h}][ext=mp4]` +
+    `/best[height<=${h}]` +
+    `/best[ext=mp4]/best`
+  );
 }
 
 function timeToSeconds(t) {
@@ -154,7 +162,7 @@ app.post('/api/download', async (req, res) => {
         args.push('-x', '--audio-format', audioFormat, '--audio-quality', '0');
       } else {
         args.push('-f', buildVideoFormat(resolution));
-        args.push('--merge-output-format', 'mp4');
+        // No --merge-output-format: we download combined streams only, no merge needed.
       }
 
       // Make ffmpeg findable via PATH as well
