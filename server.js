@@ -140,9 +140,10 @@ app.post('/api/download', async (req, res) => {
       const rawPath = path.join(outputDir, `raw.${ext}`);
 
       // Build yt-dlp args
+      const ffmpegDir = path.dirname(FFMPEG_PATH);
       const args = [
         url,
-        '--ffmpeg-location', FFMPEG_PATH,
+        '--ffmpeg-location', ffmpegDir,
         '--no-playlist',
         '--newline',
         '-o', rawPath,
@@ -156,8 +157,11 @@ app.post('/api/download', async (req, res) => {
         args.push('--merge-output-format', 'mp4');
       }
 
+      // Make ffmpeg findable via PATH as well
+      const spawnEnv = { ...process.env, PATH: `${ffmpegDir}:${process.env.PATH || '/usr/bin:/bin'}` };
+
       await new Promise((resolve, reject) => {
-        const proc = spawn(BIN_PATH, args);
+        const proc = spawn(BIN_PATH, args, { env: spawnEnv });
         let stderr = '';
 
         proc.stdout.on('data', (chunk) => {
