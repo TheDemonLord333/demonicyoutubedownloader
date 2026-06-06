@@ -9,11 +9,8 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <!-- Background particles -->
   <div class="bg-overlay"></div>
   <div id="particles"></div>
-
-  <!-- Idle runes -->
   <div class="rune rune-1">⛧</div>
   <div class="rune rune-2">⸸</div>
   <div class="rune rune-3">☽</div>
@@ -22,7 +19,6 @@
   <div class="rune rune-6">⸸</div>
 
   <div class="container">
-    <!-- Header -->
     <header class="header">
       <div class="sigil-ring">
         <svg viewBox="0 0 120 120" class="sigil-svg" aria-hidden="true">
@@ -48,30 +44,23 @@
       <p class="subtitle">Seize the content. Bend it to your will.</p>
     </header>
 
-    <!-- Main card -->
     <main class="card">
-      <!-- URL input section -->
-      <section class="section" id="url-section">
+      <!-- URL -->
+      <section class="section">
         <label class="label" for="url-input">
           <span class="label-icon">⛧</span> YouTube URL
         </label>
         <div class="input-row">
-          <input
-            type="url"
-            id="url-input"
-            class="input"
+          <input type="url" id="url-input" class="input"
             placeholder="https://www.youtube.com/watch?v=..."
-            autocomplete="off"
-            spellcheck="false"
-          />
-          <button class="btn btn-secondary" id="fetch-btn" title="Fetch video info">
-            <span class="btn-icon">☽</span>
-            <span>Summon</span>
+            autocomplete="off" spellcheck="false" />
+          <button class="btn btn-secondary" id="fetch-btn">
+            <span class="btn-icon">☽</span><span>Summon</span>
           </button>
         </div>
       </section>
 
-      <!-- Video info panel -->
+      <!-- Video info -->
       <section class="video-info hidden" id="video-info">
         <div class="info-thumb-wrap">
           <img id="info-thumb" src="" alt="thumbnail" class="info-thumb" />
@@ -84,21 +73,62 @@
         </div>
       </section>
 
-      <!-- Divider -->
-      <div class="divider">
-        <span class="divider-glyph">✦ ✦ ✦</span>
-      </div>
+      <div class="divider"><span class="divider-glyph">✦ ✦ ✦</span></div>
 
-      <!-- Trim section -->
-      <section class="section" id="trim-section">
+      <!-- Mode: Video / Audio -->
+      <section class="section">
+        <div class="label"><span class="label-icon">⛧</span> Modus</div>
+        <div class="mode-row">
+          <label class="mode-option mode-active" id="mode-video-label">
+            <input type="radio" name="mode" value="video" id="mode-video" checked hidden />
+            <span class="mode-icon">🎬</span>
+            <span>Video</span>
+          </label>
+          <label class="mode-option" id="mode-audio-label">
+            <input type="radio" name="mode" value="audio" id="mode-audio" hidden />
+            <span class="mode-icon">🎵</span>
+            <span>Audio Only</span>
+          </label>
+        </div>
+      </section>
+
+      <!-- Video options -->
+      <section class="section" id="video-options">
+        <label class="label" for="resolution-select">
+          <span class="label-icon">⸸</span> Auflösung
+        </label>
+        <select class="input select-input" id="resolution-select">
+          <option value="best">Best (höchste Qualität)</option>
+          <option value="1080">1080p</option>
+          <option value="720">720p</option>
+          <option value="480">480p</option>
+          <option value="360">360p</option>
+        </select>
+      </section>
+
+      <!-- Audio options -->
+      <section class="section hidden" id="audio-options">
+        <label class="label" for="audio-format-select">
+          <span class="label-icon">⸸</span> Audioformat
+        </label>
+        <select class="input select-input" id="audio-format-select">
+          <option value="mp3">MP3</option>
+          <option value="m4a">M4A (AAC)</option>
+          <option value="opus">Opus</option>
+          <option value="flac">FLAC</option>
+        </select>
+      </section>
+
+      <div class="divider"><span class="divider-glyph">✦ ✦ ✦</span></div>
+
+      <!-- Trim -->
+      <section class="section">
         <div class="section-header">
           <span class="label-icon">⸸</span>
           <span class="label">Custom Clip (optional)</span>
           <label class="toggle-wrap">
             <input type="checkbox" id="trim-toggle" />
-            <span class="toggle-track">
-              <span class="toggle-thumb"></span>
-            </span>
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
           </label>
         </div>
         <div class="trim-controls hidden" id="trim-controls">
@@ -113,15 +143,15 @@
               <input type="text" id="end-time" class="input input-time" placeholder="00:00:00" maxlength="8" />
             </div>
           </div>
-          <p class="trim-hint">Format: HH:MM:SS &nbsp;·&nbsp; Leave blank to use video start/end</p>
+          <p class="trim-hint">Format: HH:MM:SS &nbsp;·&nbsp; Leer lassen = Start/Ende des Videos</p>
         </div>
       </section>
 
-      <!-- Download buttons -->
+      <!-- Actions -->
       <section class="section action-section">
         <button class="btn btn-primary btn-full" id="dl-full-btn" disabled>
           <span class="btn-flame">🔥</span>
-          Download Full Video
+          <span id="dl-full-label">Download Full Video</span>
         </button>
         <button class="btn btn-accent btn-full hidden" id="dl-trim-btn" disabled>
           <span class="btn-flame">⚡</span>
@@ -129,7 +159,7 @@
         </button>
       </section>
 
-      <!-- Progress section -->
+      <!-- Progress -->
       <section class="progress-section hidden" id="progress-section">
         <div class="progress-header">
           <span class="progress-label" id="progress-label">Preparing...</span>
@@ -142,10 +172,10 @@
         <div class="progress-status" id="progress-status">Initializing...</div>
       </section>
 
-      <!-- Download ready -->
+      <!-- Ready -->
       <section class="ready-section hidden" id="ready-section">
         <div class="ready-icon">⛧</div>
-        <div class="ready-text">Your video has been claimed.</div>
+        <div class="ready-text" id="ready-text">Your file has been claimed.</div>
         <a class="btn btn-success btn-full" id="ready-link" href="#" download>
           <span>⬇</span> Save to Device
         </a>
@@ -153,7 +183,6 @@
       </section>
     </main>
 
-    <!-- Footer -->
     <footer class="footer">
       <span class="footer-sigil">⛧</span>
       Demonic YouTube Downloader &nbsp;·&nbsp; Made with darkness

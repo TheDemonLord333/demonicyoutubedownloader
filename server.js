@@ -9,7 +9,8 @@ const { v4: uuidv4 } = require('uuid');
 const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
 const ffmpeg = require('fluent-ffmpeg');
 
-ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+const FFMPEG_PATH = ffmpegInstaller.path;
+ffmpeg.setFfmpegPath(FFMPEG_PATH);
 
 const app = express();
 const PORT = 3003;
@@ -25,35 +26,40 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const jobs = new Map();
 
-// ─── yt-dlp binary setup ──────────────────────────────────────
+// ─── yt-dlp binary ───────────────────────────────────────────
 async function ensureYtDlp() {
   if (fs.existsSync(BIN_PATH)) return;
-  console.log('Downloading yt-dlp binary...');
+  console.log('Downloading yt-dlp...');
   const https = require('https');
-  const RELEASE_URL = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp';
+  const URL = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp';
   await new Promise((resolve, reject) => {
     const file = fs.createWriteStream(BIN_PATH);
     const follow = (url) => {
       https.get(url, { headers: { 'User-Agent': 'yt-dlp-node' } }, (res) => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          file.close();
-          return follow(res.headers.location);
+          file.close(); return follow(res.headers.location);
         }
-        if (res.statusCode !== 200) {
-          file.close();
-          return reject(new Error(`HTTP ${res.statusCode} fetching yt-dlp`));
-        }
+        if (res.statusCode !== 200) { file.close(); return reject(new Error(`HTTP ${res.statusCode}`)); }
         res.pipe(file);
         file.on('finish', () => file.close(resolve));
       }).on('error', (e) => { file.close(); reject(e); });
     };
-    follow(RELEASE_URL);
+    follow(URL);
   });
   fs.chmodSync(BIN_PATH, '755');
-  console.log('yt-dlp ready at', BIN_PATH);
+  console.log('yt-dlp ready.');
 }
 
-// ─── Helpers ──────────────────────────────────────────────────
+// ─── Format helpers ───────────────────────────────────────────
+function buildVideoFormat(resolution) {
+  const h = { '360': 360, '480': 480, '720': 720, '1080': 1080 }[resolution];
+  if (!h) {
+    // best quality
+    return 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best[ext=mp4]/best';
+  }
+  return `bestvideo[height<=${h}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=${h}]+bestaudio/best[height<=${h}][ext=mp4]/best[height<=${h}]`;
+}
+
 function timeToSeconds(t) {
   if (!t) return null;
   if (/^\d+(\.\d+)?$/.test(t)) return parseFloat(t);
@@ -64,26 +70,21 @@ function timeToSeconds(t) {
 }
 
 function secondsToHMS(s) {
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = Math.floor(s % 60);
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = Math.floor(s % 60);
   return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
 }
 
-// Parse yt-dlp progress line: "[download]  45.2% of  123.45MiB at  2.50MiB/s ETA 00:30"
 function parseProgress(line) {
   const m = line.match(/\[download\]\s+([\d.]+)%/);
   return m ? parseFloat(m[1]) : null;
 }
 
-// ─── Cleanup old jobs ─────────────────────────────────────────
+// ─── Cleanup ──────────────────────────────────────────────────
 setInterval(() => {
-  const ttl = 60 * 60 * 1000;
-  const now = Date.now();
+  const ttl = 60 * 60 * 1000, now = Date.now();
   for (const [id, job] of jobs.entries()) {
     if (now - (job.createdAt || 0) > ttl) {
-      const dir = path.join(DOWNLOADS_DIR, id);
-      try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
+      try { fs.rmSync(path.join(DOWNLOADS_DIR, id), { recursive: true, force: true }); } catch {}
       jobs.delete(id);
     }
   }
@@ -93,17 +94,14 @@ setInterval(() => {
 
 app.get('/api/health', (req, res) => res.json({ ok: true, bin: fs.existsSync(BIN_PATH) }));
 
-// GET video info
 app.post('/api/info', async (req, res) => {
   const { url } = req.body;
   if (!url || typeof url !== 'string') return res.status(400).json({ error: 'URL required' });
-  try {
-    await ensureYtDlp();
-  } catch (e) {
+  try { await ensureYtDlp(); } catch (e) {
     return res.status(500).json({ error: 'yt-dlp not available', details: e.message });
   }
   execFile(BIN_PATH, ['--dump-json', '--no-playlist', url], { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
-    if (err) return res.status(500).json({ error: 'Could not fetch info', details: stderr.slice(0, 300) });
+    if (err) return res.status(500).json({ error: 'Could not fetch info', details: stderr.slice(0, 400) });
     try {
       const info = JSON.parse(stdout);
       res.json({
@@ -112,53 +110,51 @@ app.post('/api/info', async (req, res) => {
         thumbnail: info.thumbnail,
         uploader: info.uploader || info.channel || '',
       });
-    } catch {
-      res.status(500).json({ error: 'Failed to parse video info' });
-    }
+    } catch { res.status(500).json({ error: 'Failed to parse video info' }); }
   });
 });
 
-// Start download job
 app.post('/api/download', async (req, res) => {
-  const { url, startTime, endTime } = req.body;
+  const { url, startTime, endTime, mode = 'video', resolution = 'best', audioFormat = 'mp3' } = req.body;
   if (!url || typeof url !== 'string') return res.status(400).json({ error: 'URL required' });
-
-  try {
-    await ensureYtDlp();
-  } catch (e) {
+  try { await ensureYtDlp(); } catch (e) {
     return res.status(500).json({ error: 'yt-dlp not available', details: e.message });
   }
 
+  const isAudio = mode === 'audio';
+  const ext = isAudio ? audioFormat : 'mp4';
   const jobId = uuidv4();
   const outputDir = path.join(DOWNLOADS_DIR, jobId);
   fs.mkdirSync(outputDir, { recursive: true });
 
   const job = {
-    status: 'downloading',
-    progress: 0,
-    filename: null,
-    filepath: null,
-    error: null,
-    title: null,
-    createdAt: Date.now(),
-    hasTrim: !!(startTime || endTime),
+    status: 'downloading', progress: 0, filepath: null, error: null,
+    title: null, createdAt: Date.now(),
+    hasTrim: !!(startTime || endTime), ext,
   };
   jobs.set(jobId, job);
   res.json({ jobId });
 
-  // Async download pipeline
   (async () => {
     try {
-      const rawPath = path.join(outputDir, 'raw.mp4');
+      const rawPath = path.join(outputDir, `raw.${ext}`);
 
+      // Build yt-dlp args
       const args = [
         url,
-        '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best[ext=mp4]/best',
-        '--merge-output-format', 'mp4',
-        '-o', rawPath,
+        '--ffmpeg-location', FFMPEG_PATH,
         '--no-playlist',
         '--newline',
+        '-o', rawPath,
       ];
+
+      if (isAudio) {
+        args.push('-f', 'bestaudio/best');
+        args.push('-x', '--audio-format', audioFormat, '--audio-quality', '0');
+      } else {
+        args.push('-f', buildVideoFormat(resolution));
+        args.push('--merge-output-format', 'mp4');
+      }
 
       await new Promise((resolve, reject) => {
         const proc = spawn(BIN_PATH, args);
@@ -169,53 +165,46 @@ app.post('/api/download', async (req, res) => {
           for (const line of lines) {
             const pct = parseProgress(line);
             if (pct !== null) job.progress = Math.round(pct * 0.8);
-            // Extract title
             if (!job.title) {
               const tm = line.match(/\[info\] (.+): Downloading/);
               if (tm) job.title = tm[1];
             }
           }
         });
-
-        proc.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
-
+        proc.stderr.on('data', (c) => { stderr += c.toString(); });
         proc.on('close', (code) => {
           if (code === 0) resolve();
-          else reject(new Error(stderr.slice(-400) || `yt-dlp exit code ${code}`));
+          else reject(new Error(stderr.slice(-600) || `yt-dlp exit code ${code}`));
         });
-
-        proc.on('error', (e) => reject(new Error(`Failed to spawn yt-dlp: ${e.message}`)));
+        proc.on('error', (e) => reject(new Error(`spawn failed: ${e.message}`)));
       });
 
       job.progress = 80;
 
+      // Trim if requested (video only)
       const startSec = timeToSeconds(startTime);
       const endSec = timeToSeconds(endTime);
 
-      if (startSec !== null || endSec !== null) {
+      if (!isAudio && (startSec !== null || endSec !== null)) {
         job.status = 'trimming';
-        const trimmedPath = path.join(outputDir, 'trimmed.mp4');
-
+        const trimmedPath = path.join(outputDir, `trimmed.mp4`);
         await new Promise((resolve, reject) => {
           let cmd = ffmpeg(rawPath);
           if (startSec !== null) cmd = cmd.setStartTime(secondsToHMS(startSec));
           if (endSec !== null) {
-            const duration = startSec !== null ? endSec - startSec : endSec;
-            cmd = cmd.setDuration(secondsToHMS(Math.max(duration, 1)));
+            const dur = startSec !== null ? endSec - startSec : endSec;
+            cmd = cmd.setDuration(secondsToHMS(Math.max(dur, 1)));
           }
-          cmd
-            .output(trimmedPath)
+          cmd.output(trimmedPath)
             .outputOptions(['-c:v copy', '-c:a copy', '-avoid_negative_ts make_zero'])
-            .on('progress', (p) => {
-              if (p.percent) job.progress = 80 + Math.round(p.percent * 0.19);
-            })
+            .on('progress', (p) => { if (p.percent) job.progress = 80 + Math.round(p.percent * 0.19); })
             .on('end', resolve)
-            .on('error', (e) => reject(new Error(`ffmpeg: ${e.message}`)))
+            .on('error', (e) => reject(new Error(`ffmpeg trim: ${e.message}`)))
             .run();
         });
-
         try { fs.unlinkSync(rawPath); } catch {}
         job.filepath = trimmedPath;
+        job.ext = 'mp4';
       } else {
         job.filepath = rawPath;
       }
@@ -230,33 +219,20 @@ app.post('/api/download', async (req, res) => {
   })();
 });
 
-// Poll job status
 app.get('/api/status/:jobId', (req, res) => {
   const job = jobs.get(req.params.jobId);
   if (!job) return res.status(404).json({ error: 'Job not found' });
-  res.json({
-    status: job.status,
-    progress: job.progress,
-    title: job.title,
-    error: job.error,
-    hasTrim: job.hasTrim,
-  });
+  res.json({ status: job.status, progress: job.progress, title: job.title, error: job.error, hasTrim: job.hasTrim, ext: job.ext });
 });
 
-// Serve finished file
 app.get('/api/file/:jobId', (req, res) => {
   const job = jobs.get(req.params.jobId);
   if (!job) return res.status(404).json({ error: 'Job not found' });
   if (job.status !== 'done') return res.status(400).json({ error: 'File not ready' });
-  if (!job.filepath || !fs.existsSync(job.filepath)) {
-    return res.status(404).json({ error: 'File missing on server' });
-  }
-  const safeName = (job.title || 'video')
-    .replace(/[^\w\s\-]/g, '')
-    .trim()
-    .slice(0, 60) || 'video';
+  if (!job.filepath || !fs.existsSync(job.filepath)) return res.status(404).json({ error: 'File missing' });
+  const safeName = (job.title || 'video').replace(/[^\w\s\-]/g, '').trim().slice(0, 60) || 'video';
   const suffix = job.hasTrim ? '_trimmed' : '';
-  res.download(job.filepath, `${safeName}${suffix}.mp4`);
+  res.download(job.filepath, `${safeName}${suffix}.${job.ext || 'mp4'}`);
 });
 
 app.listen(PORT, () => {

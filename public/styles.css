@@ -312,6 +312,61 @@ body {
   background: #fff;
 }
 
+/* ─── Select ─────────────────────────────── */
+.select-input {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23606080' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  cursor: pointer;
+}
+.select-input option {
+  background: var(--bg-card-inner);
+  color: var(--text-1);
+}
+
+/* ─── Mode selector ──────────────────────── */
+.mode-row {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.mode-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-card-inner);
+  color: var(--text-3);
+  cursor: pointer;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: border-color var(--trans), color var(--trans), box-shadow var(--trans);
+  user-select: none;
+}
+
+.mode-option:hover {
+  border-color: var(--blurple);
+  color: var(--text-2);
+}
+
+.mode-option.mode-active {
+  border-color: var(--blurple);
+  color: var(--text-1);
+  background: var(--blurple-glow);
+  box-shadow: 0 0 12px var(--blurple-glow);
+}
+
+.mode-icon { font-size: 1.1rem; }
+
 /* ─── Trim controls ──────────────────────── */
 .time-row {
   display: flex;
