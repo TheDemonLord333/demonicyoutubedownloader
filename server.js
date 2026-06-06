@@ -114,7 +114,7 @@ app.post('/api/info', async (req, res) => {
     ...process.env,
     PATH: `${nodeDir}:${ffmpegDir}:${process.env.PATH || '/usr/bin:/bin'}`,
   };
-  execFile(BIN_PATH, ['--dump-json', '--no-playlist', '--js-runtimes', `node[${process.execPath}]`, url], { maxBuffer: 10 * 1024 * 1024, env: infoEnv }, (err, stdout, stderr) => {
+  execFile(BIN_PATH, ['--dump-json', '--no-playlist', '--extractor-args', 'youtube:player_client=ios,android,web', url], { maxBuffer: 10 * 1024 * 1024, env: infoEnv }, (err, stdout, stderr) => {
     if (err) return res.status(500).json({ error: 'Could not fetch info', details: stderr.slice(0, 400) });
     try {
       const info = JSON.parse(stdout);
@@ -158,7 +158,7 @@ app.post('/api/download', async (req, res) => {
       const args = [
         url,
         '--ffmpeg-location', ffmpegDir,
-        '--js-runtimes', `node[${process.execPath}]`,
+        '--extractor-args', 'youtube:player_client=ios,android,web',
         '--no-playlist',
         '--newline',
         '-o', rawPath,
