@@ -108,7 +108,13 @@ app.post('/api/info', async (req, res) => {
   try { await ensureYtDlp(); } catch (e) {
     return res.status(500).json({ error: 'yt-dlp not available', details: e.message });
   }
-  execFile(BIN_PATH, ['--dump-json', '--no-playlist', url], { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+  const nodeDir = path.dirname(process.execPath);
+  const ffmpegDir = path.dirname(FFMPEG_PATH);
+  const infoEnv = {
+    ...process.env,
+    PATH: `${nodeDir}:${ffmpegDir}:${process.env.PATH || '/usr/bin:/bin'}`,
+  };
+  execFile(BIN_PATH, ['--dump-json', '--no-playlist', url], { maxBuffer: 10 * 1024 * 1024, env: infoEnv }, (err, stdout, stderr) => {
     if (err) return res.status(500).json({ error: 'Could not fetch info', details: stderr.slice(0, 400) });
     try {
       const info = JSON.parse(stdout);
@@ -165,8 +171,12 @@ app.post('/api/download', async (req, res) => {
         // No --merge-output-format: we download combined streams only, no merge needed.
       }
 
-      // Make ffmpeg findable via PATH as well
-      const spawnEnv = { ...process.env, PATH: `${ffmpegDir}:${process.env.PATH || '/usr/bin:/bin'}` };
+      // Make ffmpeg + node findable via PATH so yt-dlp can use them
+      const nodeDir = path.dirname(process.execPath);
+      const spawnEnv = {
+        ...process.env,
+        PATH: `${nodeDir}:${ffmpegDir}:${process.env.PATH || '/usr/bin:/bin'}`,
+      };
 
       await new Promise((resolve, reject) => {
         const proc = spawn(BIN_PATH, args, { env: spawnEnv });
