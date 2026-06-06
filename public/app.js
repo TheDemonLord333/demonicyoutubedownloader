@@ -140,7 +140,7 @@ async function fetchInfo() {
       body: JSON.stringify({ url }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || data.details || 'Unknown error');
+    if (!res.ok) throw new Error(data.details || data.error || 'Unknown error');
     videoInfoData = data;
     infoTitle.textContent    = data.title    || '—';
     infoUploader.textContent = data.uploader || '—';
@@ -193,7 +193,7 @@ async function startDownload(withTrim) {
       body: JSON.stringify(payload),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || data.details || 'Unknown error');
+    if (!res.ok) throw new Error(data.details || data.error || 'Unknown error');
     currentJobId = data.jobId;
     pollStatus();
   } catch (err) {
