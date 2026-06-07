@@ -259,6 +259,45 @@ function resetUI() {
   setProgress(0, 'Starting', '');
 }
 
+// ─── Cookies upload ───────────────────────────────────────────
+const cookiesBar    = document.getElementById('cookies-bar');
+const cookiesStatus = document.getElementById('cookies-status');
+const cookiesInput  = document.getElementById('cookies-file-input');
+
+async function checkCookiesStatus() {
+  try {
+    const res = await fetch('/api/health');
+    const data = await res.json();
+    if (data.cookies) {
+      cookiesBar.classList.add('ok');
+      cookiesBar.querySelector('.cookies-icon').textContent = '✓';
+      cookiesStatus.textContent = 'Cookies aktiv – Bot-Erkennung umgangen';
+    }
+  } catch {}
+}
+checkCookiesStatus();
+
+cookiesInput.addEventListener('change', async () => {
+  const file = cookiesInput.files[0];
+  if (!file) return;
+  const text = await file.text();
+  try {
+    const res = await fetch('/api/cookies', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: text,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Fehler');
+    cookiesBar.classList.add('ok');
+    cookiesBar.querySelector('.cookies-icon').textContent = '✓';
+    cookiesStatus.textContent = 'Cookies gespeichert – Bot-Erkennung umgangen';
+  } catch (e) {
+    alert(`Cookies-Fehler: ${e.message}`);
+  }
+  cookiesInput.value = '';
+});
+
 // ─── Shake ───────────────────────────────────────────────────
 function shake(el) {
   el.style.animation = 'none'; el.offsetHeight;

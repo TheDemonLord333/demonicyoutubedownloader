@@ -16,6 +16,7 @@ const app = express();
 const PORT = 3003;
 const DOWNLOADS_DIR = path.join(__dirname, 'downloads');
 const BIN_PATH = path.join(__dirname, 'bin', 'yt-dlp');
+const COOKIES_PATH = path.join(__dirname, 'cookies.txt');
 
 if (!fs.existsSync(DOWNLOADS_DIR)) fs.mkdirSync(DOWNLOADS_DIR, { recursive: true });
 if (!fs.existsSync(path.join(__dirname, 'bin'))) fs.mkdirSync(path.join(__dirname, 'bin'), { recursive: true });
@@ -48,6 +49,13 @@ async function ensureYtDlp() {
   });
   fs.chmodSync(BIN_PATH, '755');
   console.log('yt-dlp ready.');
+}
+
+// ─── Shared yt-dlp base args (cookies if available) ──────────
+function baseArgs() {
+  const args = ['--extractor-args', 'youtube:player_client=ios,android', '--no-playlist'];
+  if (fs.existsSync(COOKIES_PATH)) args.push('--cookies', COOKIES_PATH);
+  return args;
 }
 
 // ─── Format helpers ───────────────────────────────────────────
@@ -100,7 +108,14 @@ setInterval(() => {
 
 // ─── Routes ───────────────────────────────────────────────────
 
-app.get('/api/health', (req, res) => res.json({ ok: true, bin: fs.existsSync(BIN_PATH) }));
+app.get('/api/health', (req, res) => res.json({ ok: true, bin: fs.existsSync(BIN_PATH), cookies: fs.existsSync(COOKIES_PATH) }));
+
+app.post('/api/cookies', express.text({ type: '*/*', limit: '2mb' }), (req, res) => {
+  const text = req.body;
+  if (!text || !text.includes('youtube')) return res.status(400).json({ error: 'Invalid cookies file (must contain youtube)' });
+  fs.writeFileSync(COOKIES_PATH, text, 'utf8');
+  res.json({ ok: true });
+});
 
 app.post('/api/info', async (req, res) => {
   const { url } = req.body;
@@ -114,7 +129,7 @@ app.post('/api/info', async (req, res) => {
     ...process.env,
     PATH: `${nodeDir}:${ffmpegDir}:${process.env.PATH || '/usr/bin:/bin'}`,
   };
-  execFile(BIN_PATH, ['--dump-json', '--no-playlist', '--extractor-args', 'youtube:player_client=ios,android,web', url], { maxBuffer: 10 * 1024 * 1024, env: infoEnv }, (err, stdout, stderr) => {
+  execFile(BIN_PATH, ['--dump-json', ...baseArgs(), url], { maxBuffer: 10 * 1024 * 1024, env: infoEnv }, (err, stdout, stderr) => {
     if (err) return res.status(500).json({ error: 'Could not fetch info', details: stderr.slice(0, 400) });
     try {
       const info = JSON.parse(stdout);
@@ -158,8 +173,7 @@ app.post('/api/download', async (req, res) => {
       const args = [
         url,
         '--ffmpeg-location', ffmpegDir,
-        '--extractor-args', 'youtube:player_client=ios,android,web',
-        '--no-playlist',
+        ...baseArgs(),
         '--newline',
         '-o', rawPath,
       ];
