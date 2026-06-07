@@ -53,7 +53,7 @@ async function ensureYtDlp() {
 
 // ─── Shared yt-dlp base args (cookies if available) ──────────
 function baseArgs() {
-  const args = ['--extractor-args', 'youtube:player_client=ios,android', '--no-playlist'];
+  const args = ['--extractor-args', 'youtube:player_client=tv_embedded,ios,android', '--no-playlist'];
   if (fs.existsSync(COOKIES_PATH)) args.push('--cookies', COOKIES_PATH);
   return args;
 }
@@ -130,7 +130,13 @@ app.post('/api/info', async (req, res) => {
     PATH: `${nodeDir}:${ffmpegDir}:${process.env.PATH || '/usr/bin:/bin'}`,
   };
   execFile(BIN_PATH, ['--dump-json', ...baseArgs(), url], { maxBuffer: 10 * 1024 * 1024, env: infoEnv }, (err, stdout, stderr) => {
-    if (err) return res.status(500).json({ error: 'Could not fetch info', details: stderr.slice(0, 400) });
+    if (err) {
+      const isBot = stderr.includes('Sign in') || stderr.includes('not a bot');
+      const msg = isBot
+        ? 'YouTube erkennt den Server als Bot. Bitte Cookies hochladen (gelbe Leiste unten).'
+        : 'Could not fetch info';
+      return res.status(500).json({ error: msg, details: stderr.slice(0, 400) });
+    }
     try {
       const info = JSON.parse(stdout);
       res.json({
