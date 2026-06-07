@@ -53,8 +53,11 @@ async function ensureYtDlp() {
 
 // ─── Shared yt-dlp base args (cookies if available) ──────────
 function baseArgs() {
-  const args = ['--extractor-args', 'youtube:player_client=tv_embedded,ios,android', '--no-playlist'];
-  if (fs.existsSync(COOKIES_PATH)) args.push('--cookies', COOKIES_PATH);
+  const hasCookies = fs.existsSync(COOKIES_PATH);
+  // web client supports cookies (needed for bot bypass); ios/android don't support cookies at all
+  const client = hasCookies ? 'web' : 'ios,android';
+  const args = ['--extractor-args', `youtube:player_client=${client}`, '--no-playlist'];
+  if (hasCookies) args.push('--cookies', COOKIES_PATH);
   return args;
 }
 
