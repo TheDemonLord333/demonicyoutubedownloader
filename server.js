@@ -52,9 +52,19 @@ async function ensureYtDlp() {
 }
 
 // ─── Shared yt-dlp base args (cookies if available) ──────────
+function getDenoDir() {
+  const candidates = [
+    '/usr/local/bin',
+    '/usr/bin',
+    path.join(process.env.HOME || '/root', '.deno', 'bin'),
+    path.join('/root', '.deno', 'bin'),
+  ];
+  return candidates.find(d => fs.existsSync(path.join(d, 'deno'))) || '';
+}
+
 function baseArgs() {
   const hasCookies = fs.existsSync(COOKIES_PATH);
-  // web client supports cookies (needed for bot bypass); ios/android don't support cookies at all
+  // web client supports cookies (needed for bot bypass); ios/android don't support cookies
   const client = hasCookies ? 'web' : 'ios,android';
   const args = ['--extractor-args', `youtube:player_client=${client}`, '--no-playlist'];
   if (hasCookies) args.push('--cookies', COOKIES_PATH);
@@ -128,9 +138,10 @@ app.post('/api/info', async (req, res) => {
   }
   const nodeDir = path.dirname(process.execPath);
   const ffmpegDir = path.dirname(FFMPEG_PATH);
+  const denoDir = getDenoDir();
   const infoEnv = {
     ...process.env,
-    PATH: `${nodeDir}:${ffmpegDir}:${process.env.PATH || '/usr/bin:/bin'}`,
+    PATH: [nodeDir, ffmpegDir, denoDir, process.env.PATH || '/usr/bin:/bin'].filter(Boolean).join(':'),
   };
   execFile(BIN_PATH, ['--dump-json', ...baseArgs(), url], { maxBuffer: 10 * 1024 * 1024, env: infoEnv }, (err, stdout, stderr) => {
     if (err) {
@@ -195,11 +206,12 @@ app.post('/api/download', async (req, res) => {
         // No --merge-output-format: we download combined streams only, no merge needed.
       }
 
-      // Make ffmpeg + node findable via PATH so yt-dlp can use them
+      // Make ffmpeg + node + deno findable via PATH so yt-dlp can use them
       const nodeDir = path.dirname(process.execPath);
+      const denoDir = getDenoDir();
       const spawnEnv = {
         ...process.env,
-        PATH: `${nodeDir}:${ffmpegDir}:${process.env.PATH || '/usr/bin:/bin'}`,
+        PATH: [nodeDir, ffmpegDir, denoDir, process.env.PATH || '/usr/bin:/bin'].filter(Boolean).join(':'),
       };
 
       await new Promise((resolve, reject) => {
