@@ -73,19 +73,16 @@ function baseArgs() {
 
 // ─── Format helpers ───────────────────────────────────────────
 function buildVideoFormat(resolution) {
-  // Use ONLY combined single-file formats (video+audio already merged).
-  // "best[vcodec!=none][acodec!=none]" = formats that have BOTH streams in one file.
-  // This avoids any ffmpeg merge step entirely.
   const h = { '360': 360, '480': 480, '720': 720, '1080': 1080 }[resolution];
   if (!h) {
-    return 'best[vcodec!=none][acodec!=none][ext=mp4]/best[vcodec!=none][acodec!=none]/best[ext=mp4]/best';
+    return 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best';
   }
   return (
-    `best[vcodec!=none][acodec!=none][height<=${h}][ext=mp4]` +
-    `/best[vcodec!=none][acodec!=none][height<=${h}]` +
+    `bestvideo[height<=${h}][ext=mp4]+bestaudio[ext=m4a]` +
+    `/bestvideo[height<=${h}]+bestaudio` +
     `/best[height<=${h}][ext=mp4]` +
     `/best[height<=${h}]` +
-    `/best[ext=mp4]/best`
+    `/best`
   );
 }
 
@@ -203,7 +200,7 @@ app.post('/api/download', async (req, res) => {
         args.push('-x', '--audio-format', audioFormat, '--audio-quality', '0');
       } else {
         args.push('-f', buildVideoFormat(resolution));
-        // No --merge-output-format: we download combined streams only, no merge needed.
+        args.push('--merge-output-format', 'mp4');
       }
 
       // Make ffmpeg + node + deno findable via PATH so yt-dlp can use them
