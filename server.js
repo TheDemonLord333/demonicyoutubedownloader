@@ -64,10 +64,14 @@ function getDenoDir() {
 
 function baseArgs() {
   const hasCookies = fs.existsSync(COOKIES_PATH);
-  // web client supports cookies (needed for bot bypass); ios/android don't support cookies
-  const client = hasCookies ? 'web' : 'ios,android';
-  const args = ['--extractor-args', `youtube:player_client=${client}`, '--no-playlist'];
-  if (hasCookies) args.push('--cookies', COOKIES_PATH);
+  const args = ['--no-playlist'];
+  if (hasCookies) {
+    // Let yt-dlp auto-select client (tv+web_creator) — returns full format list with deno
+    args.push('--cookies', COOKIES_PATH);
+  } else {
+    // Without cookies, ios/android use mobile API without JS runtime
+    args.push('--extractor-args', 'youtube:player_client=ios,android');
+  }
   return args;
 }
 
